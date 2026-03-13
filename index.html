@@ -708,23 +708,22 @@ async function sheetsGet() {
 }
 
 async function sheetsUpdate(range, values) {
-  const url = WEBAPP_URL;
-  const r = await fetch(url, {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({action:'update', range, values})
+  const params = new URLSearchParams({
+    action: 'update',
+    range: range,
+    values: JSON.stringify(values)
   });
+  const r = await fetch(WEBAPP_URL + '?' + params);
   if(!r.ok) throw new Error(`Sheets PUT error: ${r.status}`);
   return r.json();
 }
 
 async function sheetsAppend(range, values) {
-  const url = WEBAPP_URL;
-  const r = await fetch(url, {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({action:'append', range, values})
+  const params = new URLSearchParams({
+    action: 'append',
+    values: JSON.stringify(values)
   });
+  const r = await fetch(WEBAPP_URL + '?' + params);
   if(!r.ok) throw new Error(`Sheets APPEND error: ${r.status}`);
   return r.json();
 }
@@ -763,7 +762,16 @@ async function loadData() {
       if(local) locs.add(local);
       if(entidade && entidade !== 'Não Aplicável') ents.add(entidade);
 
-      const s = (v) => String(v||'').trim();
+      const s = (v) => {
+        if(!v && v !== 0) return '';
+        const str = String(v).trim();
+        // Convert ISO date format from Sheets
+        if(str.match(/^\d{4}-\d{2}-\d{2}T/)) {
+          const d = new Date(str);
+          if(!isNaN(d)) return d.toLocaleDateString('pt-PT');
+        }
+        return str;
+      };
       const p = {
         num, ano: s(r[1]), nome: s(r[2]), cliente: s(r[3]),
         local, fase, status,
