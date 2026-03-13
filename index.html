@@ -641,10 +641,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Roboto
 // ═══════════════════════════════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════════════════════════════
-const SHEET_ID = '1-DIZoLqtc6Zq5mY60PlPif7pPc_hDdr3S9URNJtQRRo';
-const API_KEY  = 'AIzaSyBPoig5YRwiP9biQQ7OrUS2u0uQUU0Er4Y';
+const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwhfKBdEnj6L6F5aArMCYnvDmI9WR01cPaCSqkCFN22XhvXTDaNF29xl_5l2rWPPuDoGw/exec';
 const SHEET_NAME = 'Projetos';
-const RANGE = `${SHEET_NAME}!A:R`;
 
 // ═══════════════════════════════════════════════════════════
 // CONSTANTS
@@ -702,32 +700,30 @@ let sheetRowMap = {}; // proc -> row index (1-based, including header)
 // ═══════════════════════════════════════════════════════════
 // GOOGLE SHEETS API
 // ═══════════════════════════════════════════════════════════
-const BASE = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}`;
-
-async function sheetsGet(range) {
-  const url = `${BASE}/values/${encodeURIComponent(range)}?key=${API_KEY}`;
+async function sheetsGet() {
+  const url = WEBAPP_URL + '?action=getProjects';
   const r = await fetch(url);
   if(!r.ok) throw new Error(`Sheets GET error: ${r.status}`);
   return r.json();
 }
 
 async function sheetsUpdate(range, values) {
-  const url = `${BASE}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED&key=${API_KEY}`;
+  const url = WEBAPP_URL;
   const r = await fetch(url, {
-    method:'PUT',
+    method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({range, majorDimension:'ROWS', values})
+    body:JSON.stringify({action:'update', range, values})
   });
   if(!r.ok) throw new Error(`Sheets PUT error: ${r.status}`);
   return r.json();
 }
 
 async function sheetsAppend(range, values) {
-  const url = `${BASE}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS&key=${API_KEY}`;
+  const url = WEBAPP_URL;
   const r = await fetch(url, {
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({range, majorDimension:'ROWS', values})
+    body:JSON.stringify({action:'append', range, values})
   });
   if(!r.ok) throw new Error(`Sheets APPEND error: ${r.status}`);
   return r.json();
@@ -739,7 +735,7 @@ async function sheetsAppend(range, values) {
 async function loadData() {
   setSyncing(true);
   try {
-    const data = await sheetsGet(RANGE);
+    const data = await sheetsGet();
     const rows = data.values || [];
     if(rows.length < 2) { setSyncing(false,'ok'); return; }
 
