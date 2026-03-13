@@ -746,6 +746,7 @@ async function loadData() {
     allProjects = [];
     sheetRowMap = {};
     const locs = new Set(), ents = new Set();
+    console.log('Total rows from Sheets:', rows.length, 'First row:', JSON.stringify(rows[0]), 'Second row:', JSON.stringify(rows[1]));
 
     for(let i = 1; i < rows.length; i++) {
       const r = rows[i];
