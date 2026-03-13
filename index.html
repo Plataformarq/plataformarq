@@ -750,29 +750,30 @@ async function loadData() {
       if(!num || isNaN(num)) continue;
       sheetRowMap[num] = i + 1; // 1-based row
 
-      const rawFase = (r[5]||'').trim();
-      const rawStatus = (r[6]||'').trim();
-      const rawCoord = (r[9]||'').trim();
+      const rawFase = String(r[5]||'').trim();
+      const rawStatus = String(r[6]||'').trim();
+      const rawCoord = String(r[9]||'').trim();
 
       const fase   = normalizeDropdown(rawFase,   FASES_VALID,  FASE_MAP);
       const status = normalizeDropdown(rawStatus, STATUS_VALID, STATUS_MAP);
       const coord  = normalizeCoord(rawCoord);
 
-      const local = (r[4]||'').trim();
-      const entidade = (r[11]||'').trim();
+      const local = String(r[4]||'').trim();
+      const entidade = String(r[11]||'').trim();
       if(local) locs.add(local);
       if(entidade && entidade !== 'Não Aplicável') ents.add(entidade);
 
+      const s = (v) => String(v||'').trim();
       const p = {
-        num, ano: r[1]||'', nome: (r[2]||'').trim(), cliente: (r[3]||'').trim(),
+        num, ano: s(r[1]), nome: s(r[2]), cliente: s(r[3]),
         local, fase, status,
-        prioridade: r[7]||'Normal',
-        colaboradores: (r[8]||'').trim(),
-        coord, procUrb: (r[10]||'').trim(),
-        entidade, procCam: (r[12]||'').trim(),
-        dataComm: (r[13]||'').trim(), comunicante: (r[14]||'').trim(),
-        destinatario: (r[15]||'').trim(), info: (r[16]||'').trim(),
-        prazo: (r[17]||'').trim(),
+        prioridade: s(r[7])||'Normal',
+        colaboradores: s(r[8]),
+        coord, procUrb: s(r[10]),
+        entidade, procCam: s(r[12]),
+        dataComm: s(r[13]), comunicante: s(r[14]),
+        destinatario: s(r[15]), info: s(r[16]),
+        prazo: s(r[17]),
         rowIdx: i + 1
       };
 
