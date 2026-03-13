@@ -32,6 +32,19 @@
   --shadow-lg:0 4px 16px rgba(0,0,0,.12);
 }
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Roboto',sans-serif;font-size:13px;overflow:hidden}
+/* ── LOGIN ── */
+.login-screen{position:fixed;inset:0;background:#f5f4f0;z-index:9999;display:flex;align-items:center;justify-content:center}
+.login-box{background:#ffffff;border:1px solid #e0ddd6;border-radius:16px;padding:40px;width:360px;box-shadow:0 4px 16px rgba(0,0,0,.12);text-align:center}
+.login-logo{width:52px;height:52px;background:#b85c38;border-radius:12px;display:flex;align-items:center;justify-content:center;font-family:'Roboto Condensed',sans-serif;font-weight:700;font-size:16px;color:#fff;margin:0 auto 16px}
+.login-title{font-family:'Roboto Condensed',sans-serif;font-weight:700;font-size:22px;color:#1a1814;margin-bottom:4px;text-transform:uppercase;letter-spacing:.08em}
+.login-sub{font-size:12px;color:#9a9690;margin-bottom:28px}
+.login-input{width:100%;background:#eeece7;border:1px solid #e0ddd6;border-radius:8px;padding:11px 14px;color:#1a1814;font-family:'Roboto',sans-serif;font-size:14px;outline:none;transition:.15s;text-align:center;letter-spacing:.08em}
+.login-input:focus{border-color:#b85c38;box-shadow:0 0 0 3px rgba(184,92,56,.1)}
+.login-btn{width:100%;background:#b85c38;color:#fff;border:none;border-radius:8px;padding:11px;font-family:'Roboto',sans-serif;font-weight:500;font-size:14px;cursor:pointer;transition:.15s;margin-top:8px}
+.login-btn:hover{background:#d4703f}
+.login-error{color:#c0392b;font-size:12px;margin-top:10px;display:none}
+.login-error.show{display:block}
+
 
 /* ── LAYOUT ── */
 .app{display:grid;grid-template-columns:240px 1fr;grid-template-rows:56px 1fr;height:100vh}
@@ -287,7 +300,20 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Roboto
 </head>
 <body>
 
-<div class="app">
+
+<!-- LOGIN SCREEN -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">PA</div>
+    <div class="login-title">PLATAFORMArq</div>
+    <div class="login-sub">Sistema de Gestão de Projetos</div>
+    <input class="login-input" type="password" id="loginInput" placeholder="Introduz a password" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="login-btn" onclick="doLogin()">Entrar</button>
+    <div class="login-error" id="loginError">Password incorreta. Tenta novamente.</div>
+  </div>
+</div>
+
+<div class="app" id="mainApp" style="display:none">
   <!-- TOPBAR -->
   <header class="topbar">
     <div class="brand">
@@ -1445,7 +1471,36 @@ function checkDeepLink() {
 // ═══════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════
-loadData().then(checkDeepLink);
+
+// ── LOGIN ──
+const PASS_HASH = '7c4e5f8b3a2d6e9f1c0b8a7d4e2f5c3b9a1d6e8f2c4b7a0e3d5f8c1b9a2d4e6f'; // Manchas_2023#
+async function hashStr(s) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function doLogin() {
+  const val = document.getElementById('loginInput').value;
+  const h = await hashStr(val);
+  // Simple check — store session
+  if(val === atob('TWFuY2hhc18yMDIzIw==')) {
+    sessionStorage.setItem('pa_auth','1');
+    document.getElementById('loginScreen').style.display='none';
+    document.getElementById('mainApp').style.display='grid';
+    loadData().then(checkDeepLink);
+  } else {
+    document.getElementById('loginError').classList.add('show');
+    document.getElementById('loginInput').value='';
+    document.getElementById('loginInput').focus();
+  }
+}
+// Check if already authenticated this session
+if(sessionStorage.getItem('pa_auth')==='1') {
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('mainApp').style.display='grid';
+} else {
+  // Don't auto-load data until logged in
+}
+
 </script>
 </body>
 </html>
