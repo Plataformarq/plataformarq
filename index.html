@@ -1002,20 +1002,20 @@ function updateSidebar() {
   });
 
   document.getElementById('statusNav').innerHTML = Object.entries(statuses)
-    .sort((a,b)=>b[1]-a[1]).map(([s,c]) =>
-      `<div class="sidebar-item" onclick="filterBy('status','${s}')" id="snav-${s.replace(/[^a-z]/gi,'_')}">
+    .sort((a,b)=>b[1]-a[1]).map(([s,cnt]) =>
+      `<div class="sidebar-item ${filter.status===s?'filter-active':''}" onclick="filterBy('status','${s}')" id="snav-${s.replace(/[^a-z]/gi,'_')}">
         <span class="si-icon" style="font-size:8px">●</span>${s}
-        <span class="si-count">${c}</span></div>`).join('');
+        <span class="si-count">${cnt}</span></div>`).join('');
 
   document.getElementById('coordNav').innerHTML = Object.entries(coords)
-    .map(([c,n]) =>
-      `<div class="sidebar-item" onclick="filterBy('coord','${c}')">
-        ${avatarHTML(getInitials(c),c)} ${c.split(' ').pop()}
+    .map(([coord,n]) =>
+      `<div class="sidebar-item ${filter.coord===coord?'filter-active':''}" onclick="filterBy('coord','${coord}')">
+        ${avatarHTML(getInitials(coord),coord)} ${coord.split(' ').pop()}
         <span class="si-count">${n}</span></div>`).join('');
 
   document.getElementById('prioNav').innerHTML = ['Urgente','Alta','Normal','Baixa']
     .filter(p => prios[p]).map(p =>
-      `<div class="sidebar-item" onclick="filterBy('prio','${p}')">
+      `<div class="sidebar-item ${filter.prio===p?'filter-active':''}" onclick="filterBy('prio','${p}')">
         <span class="si-icon">${{Baixa:'↓',Normal:'→',Alta:'↑',Urgente:'⚡'}[p]}</span>${p}
         <span class="si-count">${prios[p]||0}</span></div>`).join('');
 
@@ -1028,23 +1028,18 @@ function updateSidebar() {
     }
   });
   document.getElementById('colabNav').innerHTML = Object.entries(colabs)
-    .sort((a,b)=>b[1]-a[1]).slice(0,12).map(([n,c]) =>
-      `<div class="sidebar-item" onclick="filterByColab('${n.replace(/'/g,"\'")}')">
+    .sort((a,b)=>b[1]-a[1]).slice(0,12).map(([n,cnt]) =>
+      `<div class="sidebar-item ${filter._colabFilter===n?'filter-active':''}" onclick="filterByColab('${n.replace(/'/g,"\'")}')">
         ${avatarHTML(getInitials(n),n)} ${n.split(' ')[0]}
-        <span class="si-count">${c}</span></div>`).join('');
+        <span class="si-count">${cnt}</span></div>`).join('');
 }
 
 function filterBy(key, val) {
   if(filter[key] === val) filter[key] = null;
   else { filter.status=null; filter.coord=null; filter.prio=null; filter._colabFilter=null; filter[key]=val; }
-  // Update bold on sidebar items
-  document.querySelectorAll('#statusNav .sidebar-item, #coordNav .sidebar-item, #prioNav .sidebar-item').forEach(el => {
-    el.classList.remove('filter-active');
-  });
   render();
   setNav('projetos');
-  // Re-add bold to active
-  updateSidebarActive();
+  updateSidebar();
 }
 
 function filterByColab(name) {
@@ -1053,6 +1048,7 @@ function filterByColab(name) {
   filter._colabFilter = name;
   render();
   setNav('projetos');
+  updateSidebar();
 }
 
 function updateSidebarActive() {
