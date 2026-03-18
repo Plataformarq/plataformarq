@@ -1032,7 +1032,7 @@ function updateSidebar() {
       });
     }
   });
-  // Only show collabs with at least one Ativo (Em curso) project, sorted alphabetically
+  // Collabs with Ativo (Em curso) projects — sorted alphabetically
   const activeColabs = {};
   allProjects.filter(p => p.status === 'Ativo (Em curso)').forEach(p => {
     if(p.colaboradores) {
@@ -1041,14 +1041,36 @@ function updateSidebar() {
       });
     }
   });
-  document.getElementById('colabNav').innerHTML = Object.entries(activeColabs)
-    .sort((a,b)=>a[0].localeCompare(b[0],'pt')).map(([n,cnt]) => {
-      const known = COLABORADORES.find(c => c.name === n || c.name.split(' ')[0] === n.split(' ')[0]);
-      const avClass = known ? 'avatar-'+known.id.toLowerCase() : 'avatar-default';
-      return `<div class="sidebar-item ${filter._colabFilter===n?'filter-active':''}" onclick="filterByColab('${n.replace(/'/g,"\'")}')">
-        <span class="avatar ${avClass}" style="width:22px;height:22px;font-size:9px">${getInitials(n)}</span> ${n.split(' ')[0]}
-        <span class="si-count">${cnt}</span></div>`;
-    }).join('');
+  // All other collabs (not in active) — sorted alphabetically
+  const allColabs = {};
+  allProjects.forEach(p => {
+    if(p.colaboradores) {
+      p.colaboradores.split(/[,;]+/).map(s=>s.trim()).filter(Boolean).forEach(n => {
+        allColabs[n] = (allColabs[n]||0)+1;
+      });
+    }
+  });
+  const otherColabs = Object.entries(allColabs)
+    .filter(([n]) => !activeColabs[n])
+    .sort((a,b) => a[0].localeCompare(b[0],'pt'));
+
+  const makeColabItem = ([n, cnt], isActive) => {
+    const known = COLABORADORES.find(c => c.name === n || c.name.split(' ')[0] === n.split(' ')[0]);
+    const avClass = known ? 'avatar-'+known.id.toLowerCase() : 'avatar-default';
+    return `<div class="sidebar-item ${filter._colabFilter===n?'filter-active':''}" onclick="filterByColab('${n.replace(/'/g,"\'")}')">
+      <span class="avatar ${avClass}" style="width:22px;height:22px;font-size:9px;flex-shrink:0">${getInitials(n)}</span>
+      <span style="flex:1;font-size:12px">${n}</span>
+      <span class="si-count">${cnt}</span></div>`;
+  };
+
+  const activeSorted = Object.entries(activeColabs).sort((a,b) => a[0].localeCompare(b[0],'pt'));
+  const divider = otherColabs.length > 0 && activeSorted.length > 0
+    ? `<div style="height:1px;background:var(--border);margin:4px 16px"></div>` : '';
+
+  document.getElementById('colabNav').innerHTML =
+    activeSorted.map(e => makeColabItem(e, true)).join('') +
+    divider +
+    otherColabs.map(e => makeColabItem(e, false)).join('');
 }
 
 function filterBy(key, val) {
