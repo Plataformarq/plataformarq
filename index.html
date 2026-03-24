@@ -1397,7 +1397,7 @@ function buildCollabPicker(existing) {
   selectedCollabs = existing ? existing.split(/[,;]+/).map(s=>s.trim()).filter(Boolean) : [];
   const cont = document.getElementById('collabPicker');
   cont.innerHTML = COLABORADORES.map(c => {
-    const sel = selectedCollabs.some(s => s.toLowerCase().includes(c.name.split(' ')[0].toLowerCase()) || s===c.name);
+    const sel = selectedCollabs.some(s => s === c.name);
     return `<div class="collab-chip ${sel?'selected':''}" onclick="toggleCollab(this,'${c.name}')">
       <span class="avatar avatar-${c.id.toLowerCase()}" style="width:20px;height:20px;font-size:9px">${c.id}</span>
       ${c.display||c.name.split(' ')[0]}
