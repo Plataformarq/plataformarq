@@ -1022,11 +1022,17 @@ function updateSidebar() {
     prios[p.prioridade||'Normal'] = (prios[p.prioridade||'Normal']||0)+1;
   });
 
-  document.getElementById('statusNav').innerHTML = Object.entries(statuses)
-    .sort((a,b)=>b[1]-a[1]).map(([s,cnt]) =>
-      `<div class="sidebar-item ${filter.status===s?'filter-active':''}" onclick="filterBy('status','${s}')" id="snav-${s.replace(/[^a-z]/gi,'_')}">
+  const statusOrder = ['Ativo (Coordenação)','Ativo (Em curso)','Ativo (Em espera)',
+    'Pendente: Aguarda Cliente','Pendente: Aguarda Entidades',
+    'Suspenso','Concluído','Não Aplicável'];
+  document.getElementById('statusNav').innerHTML = statusOrder
+    .filter(s => statuses[s])
+    .map(s => {
+      const cnt = statuses[s];
+      return `<div class="sidebar-item ${filter.status===s?'filter-active':''}" onclick="filterBy('status','${s}')" id="snav-${s.replace(/[^a-z]/gi,'_')}">
         <span class="si-icon" style="font-size:8px">●</span>${s}
-        <span class="si-count">${cnt}</span></div>`).join('');
+        <span class="si-count">${cnt}</span></div>`;
+    }).join('');
 
   document.getElementById('coordNav').innerHTML = Object.entries(coords)
     .map(([coord,n]) =>
