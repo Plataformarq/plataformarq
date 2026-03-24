@@ -112,6 +112,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Roboto
 .tag-dot{width:6px;height:6px;border-radius:50%}
 .tag-ativo-curso{background:#e8f5ee;color:#2e7d52}.tag-ativo-curso .tag-dot{background:#2e7d52}
 .tag-ativo-espera{background:#fff8e7;color:#c47a1e}.tag-ativo-espera .tag-dot{background:#c47a1e}
+.tag-ativo-coord{background:#e8f0fe;color:#1a56db}.tag-ativo-coord .tag-dot{background:#1a56db}
 .tag-pendente-cliente{background:#fff0eb;color:#b85c38}.tag-pendente-cliente .tag-dot{background:#b85c38}
 .tag-pendente-entidades{background:#fdecea;color:#c0392b}.tag-pendente-entidades .tag-dot{background:#c0392b}
 .tag-suspenso{background:#f3f0ff;color:#6b4fbb}.tag-suspenso .tag-dot{background:#6b4fbb}
@@ -403,6 +404,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Roboto
           <button class="view-tab" onclick="setGrouping('none',this)">Lista</button>
         </div>
         <div class="toolbar-right">
+          <button id="clearFiltersBtn" onclick="clearAllFilters()" style="display:none;background:var(--accent-light);border:1px solid var(--accent);color:var(--accent);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:'Roboto',sans-serif">✕ Limpar filtros</button>
           <span style="font-size:12px;color:var(--text3)"><b id="countVisible">0</b> projetos</span>
         </div>
       </div>
@@ -414,12 +416,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Roboto
               <th style="width:180px" onclick="sortBy('nome')">Projeto</th>
               <th style="width:120px">Cliente</th>
               <th style="width:90px">Local</th>
+              <th style="width:110px">Proc. Urb.</th>
               <th style="width:120px">Fase</th>
               <th style="width:130px">Status</th>
               <th style="width:70px">Prio.</th>
               <th style="width:70px">Coord.</th>
               <th style="width:80px">Colab.</th>
-              <th style="width:110px">Proc. Urb.</th>
               <th style="width:90px">Entidade</th>
               <th style="width:90px">Proc. Cam.</th>
               <th style="width:90px">Prazo</th>
@@ -506,6 +508,17 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Roboto
         <input type="date" class="form-input" id="cfPrazo">
       </div>
       <div class="form-field">
+        <label class="form-label">Aviso por email</label>
+        <select class="form-input form-select" id="cfAvisoDias">
+          <option value="1">1 dia antes</option>
+          <option value="3">3 dias antes</option>
+          <option value="7" selected>7 dias antes (padrão)</option>
+          <option value="14">14 dias antes</option>
+          <option value="30">30 dias antes</option>
+          <option value="0">Sem aviso</option>
+        </select>
+      </div>
+      <div class="form-field">
         <label class="form-label">Comunicante</label>
         <input type="text" class="form-input" id="cfComunicante" spellcheck="true" placeholder="Quem enviou">
       </div>
@@ -578,6 +591,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Roboto
           <select class="form-input form-select" id="fStatus">
             <option value="">— Selecionar —</option>
             <option>Ativo (Em curso)</option>
+            <option>Ativo (Coordenação)</option>
             <option>Ativo (Em espera)</option>
             <option>Pendente: Aguarda Cliente</option>
             <option>Pendente: Aguarda Entidades</option>
@@ -670,9 +684,9 @@ const SHEET_NAME = 'Projetos';
 // CONSTANTS
 // ═══════════════════════════════════════════════════════════
 const COLABORADORES = [
-  {id:'JS',name:'João Saraiva'},   {id:'RC',name:'Ricardo Calvário'},
+  {id:'JS',name:'João Saraiva',display:'Saraiva'},   {id:'RC',name:'Ricardo Calvário'},
   {id:'MC',name:'Mónica Cordeiro'},{id:'MN',name:'Marta Nunes'},
-  {id:'RP',name:'Rita Penalva'},   {id:'JN',name:'João Neves'},
+  {id:'RP',name:'Rita Penalva'},   {id:'JN',name:'João Neves',display:'Neves'},
   {id:'MP',name:'Maria Paula'},    {id:'DM',name:'Diana Masceiras'},
   {id:'MA',name:'Margarida Alves'},{id:'RG',name:'Rodrigo Garcia'},
 ];
@@ -680,7 +694,7 @@ const COLABORADORES = [
 const FASES_VALID = ['Análise Urbanística','Desenho do Existente','Estudo Prévio',
   'Projeto de Licenciamento','Projeto de Execução','Submetido','Em Obra',
   'Licença de Utilização','Resposta à Notificação','Não Aplicável'];
-const STATUS_VALID = ['Ativo (Em curso)','Ativo (Em espera)',
+const STATUS_VALID = ['Ativo (Em curso)','Ativo (Coordenação)','Ativo (Em espera)',
   'Pendente: Aguarda Cliente','Pendente: Aguarda Entidades',
   'Suspenso','Concluído','Não Aplicável'];
 
@@ -880,6 +894,8 @@ function render() {
     return av < bv ? -sortDir : av > bv ? sortDir : 0;
   });
   document.getElementById('countVisible').textContent = filtered.length;
+  const hasFilter = filter.status || filter.coord || filter.prio || filter._colabFilter;
+  document.getElementById('clearFiltersBtn').style.display = hasFilter ? 'inline-block' : 'none';
   const tbody = document.getElementById('tableBody');
 
   if(grouping === 'none') {
@@ -941,12 +957,12 @@ function rowHTML(p) {
     </td>
     <td style="color:var(--text2);font-size:12px">${p.cliente||'—'}</td>
     <td style="font-size:12px">${p.local||'—'}</td>
+    ${eCellRaw('procUrb', `<span style="font-size:12px;color:var(--text2)">${p.procUrb||'—'}</span>`, 'procUrb')}
     ${eCellRaw('fase', `<span style="font-size:12px;color:var(--text2)">${p.fase||'—'}</span>`, 'fase')}
     ${eCellRaw('status', statusTag(p.status), 'status')}
     ${eCellRaw('prioridade', prioTag(p.prioridade), 'prio')}
     <td>${coordAvatar}</td>
     <td><div class="avatars">${collabAvatars}</div></td>
-    ${eCellRaw('procUrb', `<span style="font-size:12px;color:var(--text2)">${p.procUrb||'—'}</span>`, 'procUrb')}
     ${eCell('entidade', p.entidade||'')}
     ${eCell('procCam', p.procCam||'')}
     <td>${prazoLabel}</td>
@@ -955,7 +971,7 @@ function rowHTML(p) {
 
 function statusTag(s) {
   const map = {
-    'Ativo (Em curso)':'tag-ativo-curso','Ativo (Em espera)':'tag-ativo-espera',
+    'Ativo (Em curso)':'tag-ativo-curso','Ativo (Coordenação)':'tag-ativo-coord','Ativo (Em espera)':'tag-ativo-espera',
     'Pendente: Aguarda Cliente':'tag-pendente-cliente',
     'Pendente: Aguarda Entidades':'tag-pendente-entidades',
     'Suspenso':'tag-suspenso','Concluído':'tag-concluido','Não Aplicável':'tag-na'
@@ -986,10 +1002,10 @@ function renderCollabAvatars(collabStr) {
   if(!collabStr) return '';
   const names = collabStr.split(/[,;]+/).map(s=>s.trim()).filter(Boolean);
   return names.slice(0,3).map(n => {
-    const initials = getInitials(n);
-    const known = COLABORADORES.find(c => c.name === n || c.name.split(' ')[0].toLowerCase() === n.split(' ')[0].toLowerCase());
+    const known = COLABORADORES.find(c => c.name === n);
     const cls = known ? 'avatar-' + known.id.toLowerCase() : 'avatar-default';
-    return `<span class="avatar ${cls}" title="${n}">${initials}</span>`;
+    const label = known?.display || getInitials(n);
+    return `<span class="avatar ${cls}" title="${n}" style="font-size:${known?.display?'8px':'10px'}">${label}</span>`;
   }).join('') + (names.length > 3 ? `<span class="avatar avatar-default">+${names.length-3}</span>` : '');
 }
 
@@ -1074,20 +1090,28 @@ function updateSidebar() {
 }
 
 function filterBy(key, val) {
+  // Toggle — if already selected, deselect; otherwise add to filter
   if(filter[key] === val) filter[key] = null;
-  else { filter.status=null; filter.coord=null; filter.prio=null; filter._colabFilter=null; filter[key]=val; }
+  else filter[key] = val;
   render();
   setNav('projetos');
   updateSidebar();
 }
 
 function filterByColab(name) {
-  // Filter to show projects where this person is a collaborator
-  filter.status=null; filter.coord=null; filter.prio=null;
-  filter._colabFilter = name;
+  // Toggle colab filter
+  if(filter._colabFilter === name) filter._colabFilter = null;
+  else filter._colabFilter = name;
   render();
   setNav('projetos');
   updateSidebar();
+}
+
+function clearAllFilters() {
+  filter.status=null; filter.coord=null; filter.prio=null; filter._colabFilter=null;
+  render();
+  updateSidebar();
+  document.getElementById('clearFiltersBtn').style.display='none';
 }
 
 function updateSidebarActive() {
@@ -1370,7 +1394,7 @@ function buildCollabPicker(existing) {
     const sel = selectedCollabs.some(s => s.toLowerCase().includes(c.name.split(' ')[0].toLowerCase()) || s===c.name);
     return `<div class="collab-chip ${sel?'selected':''}" onclick="toggleCollab(this,'${c.name}')">
       <span class="avatar avatar-${c.id.toLowerCase()}" style="width:20px;height:20px;font-size:9px">${c.id}</span>
-      ${c.name.split(' ')[0]}
+      ${c.display||c.name.split(' ')[0]}
     </div>`;
   }).join('');
 }
@@ -1687,7 +1711,7 @@ function startInlineEdit(e, num, field, type) {
   if(type === 'fase') {
     inputHTML = makeList(['Análise Urbanística','Desenho do Existente','Estudo Prévio','Projeto de Licenciamento','Projeto de Execução','Submetido','Em Obra','Licença de Utilização','Resposta à Notificação','Não Aplicável'], val);
   } else if(type === 'status') {
-    inputHTML = makeList(['Ativo (Em curso)','Ativo (Em espera)','Pendente: Aguarda Cliente','Pendente: Aguarda Entidades','Suspenso','Concluído','Não Aplicável'], val);
+    inputHTML = makeList(['Ativo (Em curso)','Ativo (Coordenação)','Ativo (Em espera)','Pendente: Aguarda Cliente','Pendente: Aguarda Entidades','Suspenso','Concluído','Não Aplicável'], val);
   } else if(type === 'prio') {
     inputHTML = makeList(['Baixa','Normal','Alta','Urgente'], val);
   } else if(type === 'procUrb') {
