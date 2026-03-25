@@ -113,6 +113,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Roboto
 .tag-ativo-curso{background:#e8f5ee;color:#2e7d52}.tag-ativo-curso .tag-dot{background:#2e7d52}
 .tag-ativo-espera{background:#fff8e7;color:#c47a1e}.tag-ativo-espera .tag-dot{background:#c47a1e}
 .tag-ativo-coord{background:#e8f0fe;color:#1a56db}.tag-ativo-coord .tag-dot{background:#1a56db}
+.tag-ativo-obra{background:#edf7f1;color:#1a7a4a}.tag-ativo-obra .tag-dot{background:#1a7a4a}
 .tag-pendente-cliente{background:#fff0eb;color:#b85c38}.tag-pendente-cliente .tag-dot{background:#b85c38}
 .tag-pendente-entidades{background:#fdecea;color:#c0392b}.tag-pendente-entidades .tag-dot{background:#c0392b}
 .tag-suspenso{background:#f3f0ff;color:#6b4fbb}.tag-suspenso .tag-dot{background:#6b4fbb}
@@ -593,6 +594,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Roboto
             <option>Ativo (Em curso)</option>
             <option>Ativo (Coordenação)</option>
             <option>Ativo (Em espera)</option>
+            <option>Ativo (Em obra)</option>
             <option>Pendente: Aguarda Cliente</option>
             <option>Pendente: Aguarda Entidades</option>
             <option>Suspenso</option>
@@ -694,7 +696,7 @@ const COLABORADORES = [
 const FASES_VALID = ['Análise Urbanística','Desenho do Existente','Estudo Prévio',
   'Projeto de Licenciamento','Projeto de Execução','Submetido','Em Obra',
   'Licença de Utilização','Resposta à Notificação','Não Aplicável'];
-const STATUS_VALID = ['Ativo (Em curso)','Ativo (Coordenação)','Ativo (Em espera)',
+const STATUS_VALID = ['Ativo (Em curso)','Ativo (Coordenação)','Ativo (Em espera)','Ativo (Em obra)',
   'Pendente: Aguarda Cliente','Pendente: Aguarda Entidades',
   'Suspenso','Concluído','Não Aplicável'];
 
@@ -971,7 +973,7 @@ function rowHTML(p) {
 
 function statusTag(s) {
   const map = {
-    'Ativo (Em curso)':'tag-ativo-curso','Ativo (Coordenação)':'tag-ativo-coord','Ativo (Em espera)':'tag-ativo-espera',
+    'Ativo (Em curso)':'tag-ativo-curso','Ativo (Coordenação)':'tag-ativo-coord','Ativo (Em espera)':'tag-ativo-espera','Ativo (Em obra)':'tag-ativo-obra',
     'Pendente: Aguarda Cliente':'tag-pendente-cliente',
     'Pendente: Aguarda Entidades':'tag-pendente-entidades',
     'Suspenso':'tag-suspenso','Concluído':'tag-concluido','Não Aplicável':'tag-na'
@@ -1022,7 +1024,7 @@ function updateSidebar() {
     prios[p.prioridade||'Normal'] = (prios[p.prioridade||'Normal']||0)+1;
   });
 
-  const statusOrder = ['Ativo (Coordenação)','Ativo (Em curso)','Ativo (Em espera)',
+  const statusOrder = ['Ativo (Coordenação)','Ativo (Em curso)','Ativo (Em espera)','Ativo (Em obra)',
     'Pendente: Aguarda Cliente','Pendente: Aguarda Entidades',
     'Suspenso','Concluído','Não Aplicável'];
   document.getElementById('statusNav').innerHTML = statusOrder
@@ -1513,7 +1515,7 @@ function updateKPIs() {
   const max = sorted[0]?.[1]||1;
   const colors = {'Ativo (Em curso)':'#2e7d52','Ativo (Em espera)':'#c47a1e',
     'Pendente: Aguarda Cliente':'#b85c38','Pendente: Aguarda Entidades':'#c0392b',
-    'Suspenso':'#6b4fbb','Concluído':'#2563a8','Não Aplicável':'#9a9690'};
+    'Ativo (Em obra)':'#1a7a4a','Suspenso':'#6b4fbb','Concluído':'#2563a8','Não Aplicável':'#9a9690'};
   document.getElementById('statusBars').innerHTML = sorted.map(([s,c])=>`
     <div class="bar-row">
       <div class="bar-label" title="${s}">${s}</div>
@@ -1717,7 +1719,7 @@ function startInlineEdit(e, num, field, type) {
   if(type === 'fase') {
     inputHTML = makeList(['Análise Urbanística','Desenho do Existente','Estudo Prévio','Projeto de Licenciamento','Projeto de Execução','Submetido','Em Obra','Licença de Utilização','Resposta à Notificação','Não Aplicável'], val);
   } else if(type === 'status') {
-    inputHTML = makeList(['Ativo (Em curso)','Ativo (Coordenação)','Ativo (Em espera)','Pendente: Aguarda Cliente','Pendente: Aguarda Entidades','Suspenso','Concluído','Não Aplicável'], val);
+    inputHTML = makeList(['Ativo (Em curso)','Ativo (Coordenação)','Ativo (Em espera)','Ativo (Em obra)','Pendente: Aguarda Cliente','Pendente: Aguarda Entidades','Suspenso','Concluído','Não Aplicável'], val);
   } else if(type === 'prio') {
     inputHTML = makeList(['Baixa','Normal','Alta','Urgente'], val);
   } else if(type === 'procUrb') {
