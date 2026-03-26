@@ -104,6 +104,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Roboto
 .proj-table tr:hover td{background:var(--bg2);cursor:pointer}
 .proj-table tr.selected td{background:var(--accent-light)}
 .proj-num{font-family:'Roboto Condensed',sans-serif;font-weight:700;color:var(--text3);font-size:13px}
+.proj-num-prov{color:var(--orange);font-style:italic}
 .proj-name{font-weight:500;color:var(--text)}
 .proj-sub{font-size:11px;color:var(--text3);margin-top:1px}
 
@@ -484,6 +485,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Roboto
     <button class="btn-primary btn-sm" onclick="openEditModal()">✏ Editar Projeto</button>
     <button class="btn-secondary btn-sm" onclick="toggleCommForm()">＋ Comunicação</button>
     <button class="btn-secondary btn-sm" onclick="printCommHistory()" title="Imprimir histórico">🖨 Imprimir</button>
+    <button class="btn-secondary btn-sm" id="btnConverter" onclick="converterParaDefinitivo()" style="display:none;border-color:var(--orange);color:var(--orange)">🔄 Tornar definitivo</button>
+    <button class="btn-danger btn-sm" onclick="eliminarProjeto()" title="Eliminar projeto">🗑 Eliminar</button>
   </div>
   <div class="detail-scroll" id="detailScroll">
     <div class="detail-section">
@@ -550,7 +553,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Roboto
       <div class="form-grid">
         <div class="form-field">
           <label class="form-label">Nº Processo <span class="req">*</span></label>
-          <input class="form-input" id="fNum" type="number" placeholder="Número sequencial" id="fNum">
+          <input class="form-input" id="fNum" placeholder="Número sequencial">
+        </div>
+        <div class="form-field" style="display:flex;align-items:center;gap:8px;padding-top:20px">
+          <input type="checkbox" id="fProvisorio" onchange="toggleProvisorio()" style="width:16px;height:16px;cursor:pointer">
+          <label for="fProvisorio" style="font-size:12px;color:var(--text2);cursor:pointer">Projeto provisório</label>
         </div>
         <div class="form-field">
           <label class="form-label">Ano <span class="req">*</span></label>
@@ -783,9 +790,11 @@ async function loadData() {
 
     for(let i = 1; i < rows.length; i++) {
       const r = rows[i];
-      const num = parseInt(r[0]);
-      if(!num || isNaN(num)) continue;
-      sheetRowMap[num] = i + 1; // 1-based row
+      const rawNum = String(r[0]||'').trim();
+      if(!rawNum) continue;
+      const num = rawNum.match(/^\d+$/) ? parseInt(rawNum) : rawNum;
+      if(!num) continue;
+      sheetRowMap[String(num)] = i + 1; // 1-based row
 
       const rawFase = String(r[5]||'').trim();
       const rawStatus = String(r[6]||'').trim();
@@ -952,8 +961,8 @@ function rowHTML(p) {
     </td>`;
 
   return `<tr class="fade-in">
-    <td onclick="openDetail(${p.num})" style="cursor:pointer"><span class="proj-num">${p.num}</span></td>
-    <td onclick="openDetail(${p.num})" style="cursor:pointer">
+    <td onclick="openDetail('${p.num}')" style="cursor:pointer"><span class="proj-num ${p.num.toString().startsWith('P_')?'proj-num-prov':''}">${p.num}</span></td>
+    <td onclick="openDetail('${p.num}')" style="cursor:pointer">
       <div class="proj-name">${p.nome||'—'}</div>
       ${p.ano ? `<div class="proj-sub">${p.ano}</div>` : ''}
     </td>
@@ -1175,9 +1184,9 @@ function onSearch() {
 // DETAIL PANEL
 // ═══════════════════════════════════════════════════════════
 function openDetail(num) {
-  const p = allProjects.find(x=>x.num===num);
+  const p = allProjects.find(x=>String(x.num)===String(num));
   if(!p) return;
-  selectedProc = num;
+  selectedProc = p.num;
 
   document.getElementById('dProc').textContent = `PROCESSO Nº ${p.num} · ${p.ano||''}`;
   document.getElementById('dTitle').textContent = p.nome||'—';
@@ -1199,6 +1208,9 @@ function openDetail(num) {
   document.getElementById('detailPanel').classList.add('open');
   document.getElementById('overlay').classList.add('open');
   document.getElementById('commFormWrap').classList.remove('open');
+  // Show converter button only for provisional projects
+  const isProv = String(p.num).startsWith('P_');
+  document.getElementById('btnConverter').style.display = isProv ? 'inline-flex' : 'none';
 }
 
 function closeDetail() {
@@ -1282,7 +1294,7 @@ async function saveComm() {
   // Save to Sheets
   try {
     setSyncing(true);
-    const rowIdx = sheetRowMap[num];
+    const rowIdx = sheetRowMap[String(num)];
     if(rowIdx) {
       const updateRange = `${SHEET_NAME}!N${rowIdx}:R${rowIdx}`;
       await sheetsUpdate(updateRange, [[comm.data, comm.comunicante, comm.destinatario, comm.info, comm.prazo||'']]);
@@ -1353,6 +1365,9 @@ function openAddModal() {
   document.getElementById('fNum').value = maxNum + 1;
   document.getElementById('fAno').value = new Date().getFullYear();
   document.getElementById('fNum').removeAttribute('readonly');
+  document.getElementById('fProvisorio').checked = false;
+  document.getElementById('fNum').style.color='';
+  document.getElementById('fNum').style.fontStyle='';
   buildCollabPicker(null);
   document.getElementById('projectModal').classList.add('open');
 }
@@ -1414,7 +1429,8 @@ function toggleCollab(el, name) {
 }
 
 async function saveProject() {
-  const num = parseInt(document.getElementById('fNum').value);
+  const rawNum = document.getElementById('fNum').value.trim();
+  const num = rawNum.match(/^\d+$/) ? parseInt(rawNum) : rawNum;
   const nome = document.getElementById('fNome').value.trim();
   if(!num || !nome) { showToast('Número e designação são obrigatórios.','error'); return; }
 
@@ -1443,7 +1459,7 @@ async function saveProject() {
   setSyncing(true);
   try {
     if(editMode) {
-      const rowIdx = sheetRowMap[num];
+      const rowIdx = sheetRowMap[String(num)];
       if(rowIdx) {
         await sheetsUpdate(`${SHEET_NAME}!A${rowIdx}:R${rowIdx}`, rowData);
         const idx = allProjects.findIndex(p=>p.num===num);
@@ -1451,7 +1467,7 @@ async function saveProject() {
       }
       showToast('Projeto atualizado!','success');
     } else {
-      if(allProjects.find(p=>p.num===num)) { showToast('Já existe um projeto com este número.','error'); setSyncing(false,'ok'); return; }
+      if(allProjects.find(p=>String(p.num)===String(num))) { showToast('Já existe um projeto com este número.','error'); setSyncing(false,'ok'); return; }
       await sheetsAppend(`${SHEET_NAME}!A:R`, rowData);
       const newRowIdx = allProjects.length + 2;
       proj.rowIdx = newRowIdx;
@@ -1651,6 +1667,107 @@ function showToast(msg, type='') {
 
 
 
+
+// ═══════════════════════════════════════════════════════════
+// PROJETOS PROVISÓRIOS
+// ═══════════════════════════════════════════════════════════
+function toggleProvisorio() {
+  const checked = document.getElementById('fProvisorio').checked;
+  const fNum = document.getElementById('fNum');
+  if(checked) {
+    const today = new Date();
+    const dateStr = today.getFullYear() + '_' +
+      String(today.getMonth()+1).padStart(2,'0') + '_' +
+      String(today.getDate()).padStart(2,'0');
+    // Find next available letter for today
+    const prefix = 'P_' + dateStr;
+    const existing = allProjects.filter(p => String(p.num).startsWith(prefix));
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const nextLetter = letters[existing.length] || 'A';
+    fNum.value = prefix + nextLetter;
+    fNum.setAttribute('readonly','true');
+    fNum.style.color = 'var(--orange)';
+    fNum.style.fontStyle = 'italic';
+  } else {
+    const maxNum = allProjects.filter(p => typeof p.num === 'number').reduce((m,p)=>Math.max(m,p.num),0);
+    fNum.value = maxNum + 1;
+    fNum.removeAttribute('readonly');
+    fNum.style.color = '';
+    fNum.style.fontStyle = '';
+  }
+}
+
+async function eliminarProjeto() {
+  const num = selectedProc;
+  if(!num) return;
+  const p = allProjects.find(x=>String(x.num)===String(num));
+  if(!p) return;
+  
+  if(!confirm(`Tens a certeza que queres eliminar o projeto ${p.num} — "${p.nome}"? Esta ação não pode ser desfeita.`)) return;
+
+  const rowIdx = sheetRowMap[String(num)];
+  if(!rowIdx) { showToast('Erro: linha não encontrada.','error'); return; }
+
+  try {
+    setSyncing(true);
+    // Clear the row in Sheets (can't delete rows via API without OAuth, so we clear it)
+    const emptyRow = [['','','','','','','','','','','','','','','','','','']];
+    await sheetsUpdate(`${SHEET_NAME}!A${rowIdx}:R${rowIdx}`, emptyRow);
+    setSyncing(false,'ok');
+    
+    allProjects = allProjects.filter(x=>String(x.num)!==String(num));
+    delete sheetRowMap[String(num)];
+    closeDetail();
+    render();
+    updateSidebar();
+    updateKPIs();
+    showToast('Projeto eliminado.','success');
+  } catch(e) {
+    setSyncing(false,'error');
+    showToast('Erro ao eliminar: '+e.message,'error');
+  }
+}
+
+async function converterParaDefinitivo() {
+  const num = selectedProc;
+  if(!num) return;
+  const p = allProjects.find(x=>String(x.num)===String(num));
+  if(!p) return;
+
+  const maxNum = allProjects.filter(x => typeof x.num === 'number').reduce((m,x)=>Math.max(m,x.num),0);
+  const sugestao = maxNum + 1;
+  const novoNum = prompt(`Atribuir número definitivo ao projeto "${p.nome}":
+(Próximo disponível: ${sugestao})`, sugestao);
+  if(!novoNum) return;
+  const novoNumInt = parseInt(novoNum);
+  if(isNaN(novoNumInt)) { showToast('Número inválido.','error'); return; }
+  if(allProjects.find(x=>x.num===novoNumInt)) { showToast('Já existe um projeto com esse número.','error'); return; }
+
+  const rowIdx = sheetRowMap[String(num)];
+  if(!rowIdx) { showToast('Erro: linha não encontrada.','error'); return; }
+
+  try {
+    setSyncing(true);
+    await sheetsUpdate(`${SHEET_NAME}!A${rowIdx}:A${rowIdx}`, [[novoNumInt]]);
+    setSyncing(false,'ok');
+    
+    p.num = novoNumInt;
+    delete sheetRowMap[String(num)];
+    sheetRowMap[String(novoNumInt)] = rowIdx;
+    selectedProc = novoNumInt;
+    
+    document.getElementById('dProc').textContent = `PROCESSO Nº ${p.num} · ${p.ano||''}`;
+    document.getElementById('btnConverter').style.display='none';
+    
+    render();
+    updateSidebar();
+    showToast('Projeto convertido para nº ' + novoNumInt + '!','success');
+  } catch(e) {
+    setSyncing(false,'error');
+    showToast('Erro ao converter: '+e.message,'error');
+  }
+}
+
 // ═══════════════════════════════════════════════════════════
 // PRINT COMM HISTORY
 // ═══════════════════════════════════════════════════════════
@@ -1701,7 +1818,7 @@ function startInlineEdit(e, num, field, type) {
   document.querySelectorAll('.inline-edit-wrap').forEach(el => el.remove());
 
   const td = e.currentTarget;
-  const p = allProjects.find(x => x.num === num);
+  const p = allProjects.find(x => String(x.num) === String(num));
   if(!p) return;
 
   const wrap = document.createElement('div');
@@ -1796,7 +1913,7 @@ async function saveInlineEdit(num, field) {
   const newVal = inp.value;
   wrap.remove();
 
-  const p = allProjects.find(x => x.num === num);
+  const p = allProjects.find(x => String(x.num) === String(num));
   if(!p) return;
   p[field] = newVal;
 
@@ -1809,7 +1926,7 @@ async function saveInlineEdit(num, field) {
   if(col === undefined) { render(); return; }
 
   const colLetter = String.fromCharCode(65 + col);
-  const rowIdx = sheetRowMap[num];
+  const rowIdx = sheetRowMap[String(num)];
 
   try {
     setSyncing(true);
