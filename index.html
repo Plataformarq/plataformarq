@@ -861,35 +861,38 @@ async function loadData() {
       const temHistorico = new Set();
  
       histRows.forEach(h => {
-        const procNum = String(h[0]||'').trim();
-        if(!procNum) return;
- 
-        const comm = {
-          data: String(h[1]||'').trim(),
-          comunicante: String(h[2]||'').trim(),
-          destinatario: String(h[3]||'').trim(),
-          info: String(h[4]||'').trim(),
-          prazo: String(h[5]||'').trim(),
-          _source: 'historico'
-        };
- 
-        if(!comm.data && !comm.info) return;
- 
-        if(!temHistorico.has(procNum)) {
-          // Primeira vez que vemos este projecto no histórico
-          // Remove o fallback da folha Projetos
-          commsData[procNum] = [];
-          temHistorico.add(procNum);
-        }
- 
-        // Verifica duplicatas
-        const existe = commsData[procNum].find(c =>
-          c.data === comm.data && c.info === comm.info && c.comunicante === comm.comunicante
-        );
-        if(!existe) {
-          commsData[procNum].push(comm);
-        }
-      });
+  const procNum = String(h[0]||'').trim();
+  if(!procNum) return;
+
+  // Estrutura da folha Histórico:
+  // A=Proc, B=Data, C=De, D=Para, E=Assunto/Info, F=ID Email (ignorar)
+  const comm = {
+    data: String(h[1]||'').trim(),
+    comunicante: String(h[2]||'').trim(),
+    destinatario: String(h[3]||'').trim(),
+    info: String(h[4]||'').trim(),
+    prazo: '',  // prazo não existe no histórico de emails
+    _source: 'historico'
+  };
+
+  if(!comm.data && !comm.info) return;
+
+  if(!temHistorico.has(procNum)) {
+    commsData[procNum] = [];
+    temHistorico.add(procNum);
+  }
+
+  // Usa ID do email (coluna F) para evitar duplicatas
+  const emailId = String(h[5]||'').trim();
+  const existe = emailId 
+    ? commsData[procNum].find(c => c._emailId === emailId)
+    : commsData[procNum].find(c => c.data === comm.data && c.info === comm.info);
+    
+  if(!existe) {
+    comm._emailId = emailId;
+    commsData[procNum].push(comm);
+  }
+});
  
       // Re-renderiza o painel de detalhe se estiver aberto
       if(selectedProc) {
@@ -915,25 +918,27 @@ async function loadData() {
 async function loadHistoricoData() {
   return new Promise((resolve, reject) => {
     const sheetId = '1-DIZoLqtc6Zq5mY60PIPif7pPc_hDdr3S9URNJtQRRo';
-    const gid = 1599591178; // Folha "Histórico"
-    const url = 'https://docs.google.com/spreadsheets/d/' + sheetId + '/gviz/tq?gid=' + gid + '&tq=' + encodeURIComponent('select A,B,C,D,E,F') + '&headers=1';
- 
+    const gid = 1599591178;
+    const url = 'https://docs.google.com/spreadsheets/d/' + sheetId + 
+      '/gviz/tq?gid=' + gid + 
+      '&tq=' + encodeURIComponent('select A,B,C,D,E,F') + 
+      '&headers=1';
+
     fetch(url)
       .then(r => r.text())
       .then(text => {
-        // Google Visualization API devolve JSONP — extrai o JSON
         const match = text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/);
         if(!match) { reject(new Error('Formato inesperado')); return; }
- 
+
         const json = JSON.parse(match[1]);
-        if(json.status === 'error') { reject(new Error(json.errors?.[0]?.message || 'Erro')); return; }
- 
+        if(json.status === 'error') { reject(new Error('Erro Sheets')); return; }
+
         const rows = json.table?.rows || [];
         const result = rows.map(row => {
           const cells = row.c || [];
           return cells.map(cell => {
             if(!cell || cell.v === null || cell.v === undefined) return '';
-            // Datas vêm como "Date(2026,3,29)" — converte para dd/mm/yyyy
+            // Datas vêm como "Date(2026,3,29)"
             if(typeof cell.v === 'string' && cell.v.startsWith('Date(')) {
               const parts = cell.v.match(/Date\((\d+),(\d+),(\d+)\)/);
               if(parts) {
@@ -941,11 +946,11 @@ async function loadHistoricoData() {
                 return d.toLocaleDateString('pt-PT');
               }
             }
+            // Números (proc) convertem para string
             return String(cell.v).trim();
           });
         });
- 
-        console.log('Histórico carregado: ' + result.length + ' linhas');
+
         resolve(result);
       })
       .catch(e => reject(e));
