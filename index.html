@@ -142,6 +142,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Roboto
 .avatar-dm{background:#5c2e7a}
 .avatar-ma{background:#2e5c7a}
 .avatar-rg{background:#7a2e5c}
+.avatar-sa{background:#8a6d1f}
 .avatar-default{background:#9a9690}
 .avatars{display:flex;gap:-4px}
 .avatars .avatar{margin-left:-6px;border:2px solid var(--surface)}
@@ -693,12 +694,28 @@ const SHEET_NAME = 'Projetos';
 // CONSTANTS
 // ═══════════════════════════════════════════════════════════
 const COLABORADORES = [
-  {id:'JS',name:'João Saraiva',display:'Saraiva'},   {id:'RC',name:'Ricardo Calvário'},
+  {id:'JS',name:'João Saraiva',display:'Saraiva',aliases:['Saraiva']},   {id:'RC',name:'Ricardo Calvário'},
   {id:'MC',name:'Mónica Cordeiro'},{id:'MN',name:'Marta Nunes'},
   {id:'RP',name:'Rita Penalva'},   {id:'JN',name:'João Neves',display:'Neves'},
   {id:'MP',name:'Maria Paula'},    {id:'DM',name:'Diana Masceiras'},
   {id:'MA',name:'Margarida Alves'},{id:'RG',name:'Rodrigo Garcia'},
+  // label = nome no botão do formulário; aliases = como já aparece escrito na folha
+  {id:'SA',name:'José Santos',label:'Santos',aliases:['Santos']},
 ];
+
+// Encontra o colaborador pelo nome completo ou por um nome antigo (alias)
+function findColab(n) {
+  return COLABORADORES.find(c => c.name === n || (c.aliases||[]).includes(n));
+}
+
+// Lê a coluna "Colaborador": passa os nomes antigos ao nome completo e tira os repetidos
+// (ex.: "Saraiva, João Saraiva" -> ["João Saraiva"])
+function splitColabs(str) {
+  if(!str) return [];
+  const names = str.split(/[,;]+/).map(s=>s.trim()).filter(Boolean)
+    .map(s => { const k = findColab(s); return k ? k.name : s; });
+  return [...new Set(names)];
+}
 
 const FASES_VALID = ['Análise Urbanística','Desenho do Existente','Estudo Prévio',
   'Projeto de Licenciamento','Projeto de Execução','Submetido','Em Obra',
@@ -970,7 +987,7 @@ function getFiltered() {
     if(filter.coord && p.coord !== filter.coord) return false;
     if(filter.prio && p.prioridade !== filter.prio) return false;
     if(filter._colabFilter) {
-      const names = p.colaboradores ? p.colaboradores.split(/[,;]+/).map(s=>s.trim()) : [];
+      const names = splitColabs(p.colaboradores);
       if(!names.includes(filter._colabFilter)) return false;
     }
     if(filter.search) {
@@ -1000,12 +1017,12 @@ function render() {
     const key = {status:'status',coord:'coord',prio:'prioridade',colab:'colaboradores'}[grouping];
     const order = grouping === 'status' ? STATUS_VALID
                 : grouping === 'prio' ? ['Urgente','Alta','Normal','Baixa']
-                : grouping === 'colab' ? [...new Set(allProjects.flatMap(p=>p.colaboradores ? p.colaboradores.split(/[,;]+/).map(s=>s.trim()) : ['—']))].sort()
+                : grouping === 'colab' ? [...new Set(allProjects.flatMap(p=>p.colaboradores ? splitColabs(p.colaboradores) : ['—']))].sort()
                 : [...new Set(allProjects.map(p=>p.coord||'—'))].sort();
     const groups = {};
     if(grouping === 'colab') {
       filtered.forEach(p => {
-        const names = p.colaboradores ? p.colaboradores.split(/[,;]+/).map(s=>s.trim()).filter(Boolean) : ['—'];
+        const names = p.colaboradores ? splitColabs(p.colaboradores) : ['—'];
         names.forEach(n => { (groups[n]||(groups[n]=[])).push(p); });
       });
     } else {
@@ -1096,11 +1113,11 @@ function getInitials(name) {
 
 function renderCollabAvatars(collabStr) {
   if(!collabStr) return '';
-  const names = collabStr.split(/[,;]+/).map(s=>s.trim()).filter(Boolean);
+  const names = splitColabs(collabStr);
   return names.slice(0,3).map(n => {
-    const known = COLABORADORES.find(c => c.name === n);
+    const known = findColab(n);
     const cls = known ? 'avatar-' + known.id.toLowerCase() : 'avatar-default';
-    const label = known?.display || getInitials(n);
+    const label = known ? (known.display || known.id) : getInitials(n);
     return `<span class="avatar ${cls}" title="${n}" style="font-size:${known?.display?'8px':'10px'}">${label}</span>`;
   }).join('') + (names.length > 3 ? `<span class="avatar avatar-default">+${names.length-3}</span>` : '');
 }
@@ -1145,7 +1162,7 @@ function updateSidebar() {
   const colabs = {};
   allProjects.forEach(p => {
     if(p.colaboradores) {
-      p.colaboradores.split(/[,;]+/).map(s=>s.trim()).filter(Boolean).forEach(n => {
+      splitColabs(p.colaboradores).forEach(n => {
         colabs[n] = (colabs[n]||0)+1;
       });
     }
@@ -1154,7 +1171,7 @@ function updateSidebar() {
   const activeColabs = {};
   allProjects.filter(p => p.status === 'Ativo (Em curso)').forEach(p => {
     if(p.colaboradores) {
-      p.colaboradores.split(/[,;]+/).map(s=>s.trim()).filter(Boolean).forEach(n => {
+      splitColabs(p.colaboradores).forEach(n => {
         activeColabs[n] = (activeColabs[n]||0)+1;
       });
     }
@@ -1163,7 +1180,7 @@ function updateSidebar() {
   const allColabs = {};
   allProjects.forEach(p => {
     if(p.colaboradores) {
-      p.colaboradores.split(/[,;]+/).map(s=>s.trim()).filter(Boolean).forEach(n => {
+      splitColabs(p.colaboradores).forEach(n => {
         allColabs[n] = (allColabs[n]||0)+1;
       });
     }
@@ -1173,10 +1190,10 @@ function updateSidebar() {
     .sort((a,b) => a[0].localeCompare(b[0],'pt'));
 
   const makeColabItem = ([n, cnt], isActive) => {
-    const known = COLABORADORES.find(c => c.name === n || c.name.split(' ')[0] === n.split(' ')[0]);
+    const known = findColab(n) || COLABORADORES.find(c => c.name.split(' ')[0] === n.split(' ')[0]);
     const avClass = known ? 'avatar-'+known.id.toLowerCase() : 'avatar-default';
     return `<div class="sidebar-item ${filter._colabFilter===n?'filter-active':''}" onclick="filterByColab('${n.replace(/'/g,"\'")}')">
-      <span class="avatar ${avClass}" style="width:22px;height:22px;font-size:9px;flex-shrink:0">${getInitials(n)}</span>
+      <span class="avatar ${avClass}" style="width:22px;height:22px;font-size:9px;flex-shrink:0">${known&&findColab(n)?known.id:getInitials(n)}</span>
       <span style="flex:1;font-size:12px">${n}</span>
       <span class="si-count">${cnt}</span></div>`;
   };
@@ -1446,7 +1463,8 @@ function openAddModal() {
   document.getElementById('modalSaveBtn').textContent = 'Guardar Projeto';
   clearProjectForm();
   // Auto-suggest next num
-  const maxNum = allProjects.reduce((m,p)=>Math.max(m,p.num),0);
+  // Só os números inteiros (os provisórios, ex.: P_2026_03_26A, davam NaN)
+  const maxNum = allProjects.reduce((m,p)=>typeof p.num==='number' && !isNaN(p.num) ? Math.max(m,p.num) : m,0);
   document.getElementById('fNum').value = maxNum + 1;
   document.getElementById('fAno').value = new Date().getFullYear();
   document.getElementById('fNum').removeAttribute('readonly');
@@ -1496,13 +1514,16 @@ function closeProjectModal() {
 }
 
 function buildCollabPicker(existing) {
-  selectedCollabs = existing ? existing.split(/[,;]+/).map(s=>s.trim()).filter(Boolean) : [];
+  // Nomes antigos (ex.: "Santos") passam ao nome completo; ao guardar, a folha fica corrigida
+  selectedCollabs = existing ? existing.split(/[,;]+/).map(s=>s.trim()).filter(Boolean)
+    .map(s => { const k = COLABORADORES.find(c => (c.aliases||[]).includes(s)); return k ? k.name : s; }) : [];
+  selectedCollabs = [...new Set(selectedCollabs)];
   const cont = document.getElementById('collabPicker');
   cont.innerHTML = COLABORADORES.map(c => {
     const sel = selectedCollabs.some(s => s === c.name);
     return `<div class="collab-chip ${sel?'selected':''}" onclick="toggleCollab(this,'${c.name}')">
       <span class="avatar avatar-${c.id.toLowerCase()}" style="width:20px;height:20px;font-size:9px">${c.id}</span>
-      ${c.display||c.name.split(' ')[0]}
+      ${c.label||c.display||c.name.split(' ')[0]}
     </div>`;
   }).join('');
 }
